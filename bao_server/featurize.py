@@ -39,12 +39,14 @@ class TreeBuilder:
         raise TreeBuilderError("Cannot extract relation type from node")
                 
     def __featurize_join(self, node):
+        # For Operation Type removal experiments
         assert is_join(node)
-        arr = np.zeros(len(ALL_TYPES))
-        arr[ALL_TYPES.index(node["Node Type"])] = 1
+        arr = np.zeros(len(ALL_TYPES)) # node opperation 1-hot vector
+        arr[ALL_TYPES.index(node["Node Type"])] = 1 # node opperation 1-hot vector
         return np.concatenate((arr, self.__stats(node)))
 
     def __featurize_scan(self, node):
+        # For Operation Type removal experiments
         assert is_scan(node)
         arr = np.zeros(len(ALL_TYPES))
         arr[ALL_TYPES.index(node["Node Type"])] = 1
@@ -99,6 +101,7 @@ class StatExtractor:
         return res
 
 def get_plan_stats(data):
+    # For Cost & Cardinality removal experiments
     costs = []
     rows = []
     bufs = []
