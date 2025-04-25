@@ -1,3 +1,4 @@
+import pickle
 import socketserver
 import json
 import struct
@@ -33,9 +34,13 @@ class BaoModel:
 
         # if we do have a model, make predictions for each plan.
         arms = add_buffer_info_to_plans(buffers, arms)
+        #TODO: save the plans for each arm: (wither their bao prediction)
         res = self.__current_model.predict(arms)
         idx = res.argmin()
         stop = time.time()
+        # TODO: Store optim time for arm number experiments
+        optim_time  = stop - start
+
         print("Selected index", idx,
               "after", f"{round((stop - start) * 1000)}ms",
               "Predicted reward / PG:", res[idx][0],
@@ -108,6 +113,7 @@ class BaoJSONHandler(JSONTCPHandler):
                 result = self.server.bao_model.select_plan(self.__messages)
                 self.request.sendall(struct.pack("I", result))
                 self.request.close()
+                storage.record_arm(result) # temporarily store arm to record on "reward"
             elif message_type == "predict":
                 result = self.server.bao_model.predict(self.__messages)
                 self.request.sendall(struct.pack("d", result))
@@ -115,7 +121,8 @@ class BaoJSONHandler(JSONTCPHandler):
             elif message_type == "reward":
                 plan, buffers, obs_reward = self.__messages
                 plan = add_buffer_info_to_plans(buffers, [plan])[0]
-                storage.record_reward(plan, obs_reward["reward"], obs_reward["pid"])
+                arm_index = storage.last_arm()
+                storage.record_reward(plan, obs_reward["reward"], obs_reward["pid"],arm_index)
             elif message_type == "load model":
                 path = self.__messages[0]["path"]
                 self.server.bao_model.load_model(path)
@@ -140,7 +147,21 @@ def start_server(listen_on, port):
         server.bao_model = model
         server.serve_forever()
 
+# Extra code (track the order in a workload)
+ARM_COUNTER_FILE = "arm_counter.pkl"
 
+def load_arm_counter():
+    try:
+        with open(ARM_COUNTER_FILE, "rb") as f:
+            return pickle.load(f)
+    except (FileNotFoundError, EOFError):
+        return 0  # Start from 0 if the file doesn't exist
+
+def save_arm_counter(value):
+    with open(ARM_COUNTER_FILE, "wb") as f:
+        pickle.dump(value, f)
+
+        
 if __name__ == "__main__":
     from multiprocessing import Process
     from config import read_config
