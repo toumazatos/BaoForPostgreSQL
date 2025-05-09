@@ -6,9 +6,9 @@ import joblib
 import os
 from sklearn import preprocessing
 from sklearn.pipeline import Pipeline
-
 from torch.utils.data import DataLoader
 import net
+import time
 from featurize import TreeFeaturizer
 
 CUDA = torch.cuda.is_available()
@@ -87,7 +87,8 @@ class BaoRegression:
             self.__in_channels = joblib.load(f)
             
         self.__net = net.BaoNet(self.__in_channels)
-        self.__net.load_state_dict(torch.load(_nn_path(path)))
+        # The map_location argument is required to use a CPU-based PyTorch version.
+        self.__net.load_state_dict(torch.load(_nn_path(path), map_location=torch.device('cpu')))
         self.__net.eval()
         
         with open(_y_transform_path(path), "rb") as f:
@@ -143,6 +144,9 @@ class BaoRegression:
             assert in_channels == self.__tree_transform.num_operators() + 2
 
         self.__net = net.BaoNet(in_channels)
+        # Raise flag to the NN that it is being trained so that it won't 
+        # store the predictions.
+        self.__net.set_being_trained()
         self.__in_channels = in_channels
         if CUDA:
             self.__net = self.__net.cuda()
@@ -174,18 +178,82 @@ class BaoRegression:
                 last_two = np.min(losses[-2:])
                 if last_two > losses[-10] or (losses[-10] - last_two < 0.0001):
                     self.__log("Stopped training from convergence condition at epoch", epoch)
+                    # Raise flag to the NN to begin storing the predictions.
+                    self.__net.set_ready()
                     break
         else:
             self.__log("Stopped training after max epochs")
+            self.__net.set_ready()
 
     def predict(self, X):
+        self.__net.set_being_trained() # TODO: delete later
+
         if not isinstance(X, list):
             X = [X]
         X = [json.loads(x) if isinstance(x, str) else x for x in X]
 
+        #print("Before Tree Transformation = {}\n".format(X))
         X = self.__tree_transform.transform(X)
+        #print("AFTER Tree Transformation = {}\n".format(X))
         
         self.__net.eval()
         pred = self.__net(X).cpu().detach().numpy()
-        return self.__pipeline.inverse_transform(pred)
+        #print(pred)
+        return self.__pipeline.inverse_transform(pred)[0][0]
+    
+    def featurize_vector(self, X):
+        if not isinstance(X, list):
+            X = [X]
+        X = [json.loads(x) if isinstance(x, str) else x for x in X]
+
+        return self.__tree_transform.transform(X)
+
+
+    def predict_vector(self, X):
+        # For testing poisoning at the lowest level: vectorized plans
+        self.__net.set_being_trained() # TODO: delete later
+        self.__net.eval()
+        pred = self.__net(X).cpu().detach().numpy()
+        #print(pred)
+        return self.__pipeline.inverse_transform(pred)[0][0]
+
+
+    
+    def compute_gradients_vectorized(self, x, y, layer=10, return_loss=False):
+        # Ensure y is a PyTorch tensor and has the same shape as y_pred
+        y = torch.tensor(y, dtype=torch.float32)
+        if len(y.shape) == 1:  # If y is a flat array, add a batch dimension
+            y = y.unsqueeze(0)
+
+        self.__net.zero_grad()
+        self.__net.set_being_trained()
+
+        loss_fn = torch.nn.MSELoss()
+        self.__net.train()
+
+        # Forward pass to compute predictions and gradients
+        y_pred, trees = self.__net(x, return_trees=True, layer=layer)
+        #print(y_pred)
+
+        # Compute the loss (negating to maximize the original loss)
+        # loss = loss_fn(y_pred, y)  TODO: maybe uncomment later
+        loss = y_pred - y
+
+
+        #print(f"loss == {loss.item()}")
+        
+        # Retain gradients for the input trees
+        trees.retain_grad()
+        loss.backward()
+
+        # Detach gradients to avoid side effects
+        gradients = trees.grad.detach()
+
+        # Clear gradients from the network
+        self.__net.zero_grad()
+
+        if return_loss:
+            return gradients, loss.item()
+        return gradients
+
 
