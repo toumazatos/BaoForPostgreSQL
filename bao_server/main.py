@@ -43,7 +43,7 @@ class BaoModel:
         idx = res.argmin()
         stop = time.time()
         # TODO: Store optim time for arm number experiments
-        last_optim_time  = stop - start
+        last_optim_time  = (stop - start)*1000
 
         print("Selected index", idx,
               "after", f"{round((stop - start) * 1000)}ms",
