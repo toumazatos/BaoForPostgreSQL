@@ -125,6 +125,9 @@ class BaoJSONHandler(JSONTCPHandler):
                 plan, buffers, obs_reward = self.__messages
                 plan = add_buffer_info_to_plans(buffers, [plan])[0]
                 arm_index = storage.last_arm()
+                print(last_optim_time)
+                print(obs_reward["reward"])
+                print(arm_index)
                 storage.record_reward(plan, last_optim_time, obs_reward["reward"], obs_reward["pid"],arm_index)
             elif message_type == "load model":
                 path = self.__messages[0]["path"]
