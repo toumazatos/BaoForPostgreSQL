@@ -104,7 +104,7 @@ def record_predictions(predictions):
 def record_reward(plan, optim_time, reward, pid, arm_idx):
     with _bao_db() as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO experience (plan, optim_time, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?)",
+        c.execute("INSERT INTO experience (plan, optim_time, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?, ?)",
                   (json.dumps(plan), optim_time, reward, pid, arm_idx))
         conn.commit()
 
