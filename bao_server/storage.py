@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS experience (
     id INTEGER PRIMARY KEY,
     pg_pid INTEGER,
     plan TEXT, 
-    reward REAL
+    reward REAL,
+    arm_idx INTEGER
 )""")
     c.execute("""
 CREATE TABLE IF NOT EXISTS experimental_query (
@@ -28,17 +29,103 @@ CREATE TABLE IF NOT EXISTS experience_for_experimental (
     FOREIGN KEY (experimental_id) REFERENCES experimental_query(id),
     PRIMARY KEY (experience_id, experimental_id, arm_idx)
 )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS arm_holder (
+        id INTEGER PRIMARY KEY,
+        idx INTEGER
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS predictions (
+        id INTEGER,
+        plan TEXT,
+        arm_idx INTEGER,
+        predicted_reward REAL,
+        pen_rep TEXT
+    )""")
     conn.commit()
     return conn
 
-def record_reward(plan, reward, pid):
+def flush_tables():
+    """
+    This is a custom function to empty the database and erase prior experience. -GS
+    """
     with _bao_db() as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO experience (plan, reward, pg_pid) VALUES (?, ?, ?)",
-                  (json.dumps(plan), reward, pid))
+        c.execute(
+            "DELETE FROM experience"
+        )
+        c.execute(
+            "DELETE FROM experimental_query"
+        )
+        c.execute(
+            "DELETE FROM experience_for_experimental"
+        )
+        c.execute(
+            "DELETE FROM arm_holder"
+        )
+        c.execute(
+            "DELETE FROM predictions"
+        )
+        conn.commit()
+    print("Emptied all tables in database.")
+
+def record_arms_plans(arms):
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT MAX(id)+1 FROM experience;")
+        out = c.fetchall()[0][0]
+        nextId = int(out) if out is not None else 1
+        for (i, plan) in enumerate(arms):
+            c.execute("INSERT INTO predictions (id, arm_idx, plan) VALUES (?, ?, ?)", (nextId, i, str(plan),))
+            conn.commit()
+
+def record_penultimate_representation(representations):
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT MAX(id)+1 FROM experience;")
+        out = c.fetchall()[0][0]
+        nextId = int(out) if out is not None else 1
+        for (i, rep) in enumerate(representations):
+            vector = [val.item() for val in rep]
+            c.execute(f"UPDATE predictions SET pen_rep = '{str(vector)}' WHERE id = {nextId} AND arm_idx = {i};")
+            conn.commit()
+
+def record_predictions(predictions):
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT MAX(id)+1 FROM experience;")
+        out = c.fetchall()[0][0]
+        nextId = int(out) if out is not None else 1
+        for (i, pred) in enumerate(predictions):
+            c.execute(f"UPDATE predictions SET predicted_reward = {float(pred[0])} WHERE id = {nextId} AND arm_idx = {i};")
+            conn.commit()
+
+def record_reward(plan, reward, pid, arm_idx):
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO experience (plan, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?)",
+                  (json.dumps(plan), reward, pid, arm_idx))
         conn.commit()
 
     print("Logged reward of", reward)
+
+def record_arm(arm_idx):
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO arm_holder (idx) VALUES ({})".format(arm_idx))
+        conn.commit()
+
+def last_arm():
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, idx FROM arm_holder ORDER BY id LIMIT 1;")
+        out = c.fetchall()
+        if len(out)!=0:
+            c.execute("DELETE FROM arm_holder WHERE id = {}".format(out[0][0]))
+            conn.commit()
+            return out[0][1]
+        else:
+            return -1
 
 def last_reward_from_pid(pid):
     with _bao_db() as conn:
@@ -53,7 +140,13 @@ def last_reward_from_pid(pid):
 def experience():
     with _bao_db() as conn:
         c = conn.cursor()
-        c.execute("SELECT plan, reward FROM experience")
+        c.execute("SELECT plan, reward FROM experience") # (plan): json that contains the plan; (reward): real exec time, float point 
+        return c.fetchall()
+
+def experience_with_arm():
+    with _bao_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT plan, reward, arm_idx FROM experience")
         return c.fetchall()
 
 def experiment_experience():

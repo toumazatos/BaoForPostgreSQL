@@ -34,8 +34,10 @@ class BaoModel:
 
         # if we do have a model, make predictions for each plan.
         arms = add_buffer_info_to_plans(buffers, arms)
-        #TODO: save the plans for each arm: (wither their bao prediction)
+        #TODO: save the plans for each arm: (with their bao prediction)
+        storage.record_arms_plans(arms)
         res = self.__current_model.predict(arms)
+        storage.record_predictions(res)
         idx = res.argmin()
         stop = time.time()
         # TODO: Store optim time for arm number experiments
