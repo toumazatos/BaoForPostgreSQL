@@ -13,6 +13,7 @@ import math
 import reg_blocker
 from constants import (PG_OPTIMIZER_INDEX, DEFAULT_MODEL_PATH,
                        OLD_MODEL_PATH, TMP_MODEL_PATH)
+last_optim_time = None
 
 def add_buffer_info_to_plans(buffer_info, plans):
     for p in plans:
@@ -41,7 +42,7 @@ class BaoModel:
         idx = res.argmin()
         stop = time.time()
         # TODO: Store optim time for arm number experiments
-        optim_time  = stop - start
+        last_optim_time  = stop - start
 
         print("Selected index", idx,
               "after", f"{round((stop - start) * 1000)}ms",
@@ -124,7 +125,7 @@ class BaoJSONHandler(JSONTCPHandler):
                 plan, buffers, obs_reward = self.__messages
                 plan = add_buffer_info_to_plans(buffers, [plan])[0]
                 arm_index = storage.last_arm()
-                storage.record_reward(plan, obs_reward["reward"], obs_reward["pid"],arm_index)
+                storage.record_reward(plan, last_optim_time, obs_reward["reward"], obs_reward["pid"],arm_index)
             elif message_type == "load model":
                 path = self.__messages[0]["path"]
                 self.server.bao_model.load_model(path)

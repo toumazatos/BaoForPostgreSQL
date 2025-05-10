@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS experience (
     pg_pid INTEGER,
     plan TEXT, 
     reward REAL,
+    optim_time REAL,
     arm_idx INTEGER
 )""")
     c.execute("""
@@ -100,11 +101,11 @@ def record_predictions(predictions):
             c.execute(f"UPDATE predictions SET predicted_reward = {float(pred[0])} WHERE id = {nextId} AND arm_idx = {i};")
             conn.commit()
 
-def record_reward(plan, reward, pid, arm_idx):
+def record_reward(plan, optim_time, reward, pid, arm_idx):
     with _bao_db() as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO experience (plan, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?)",
-                  (json.dumps(plan), reward, pid, arm_idx))
+        c.execute("INSERT INTO experience (plan, optim_time, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?)",
+                  (json.dumps(plan), optim_time, reward, pid, arm_idx))
         conn.commit()
 
     print("Logged reward of", reward)
