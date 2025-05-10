@@ -186,7 +186,7 @@ class BaoRegression:
             self.__net.set_ready()
 
     def predict(self, X):
-        self.__net.set_being_trained() # TODO: delete later
+        # self.__net.set_being_trained() # TODO: comment back for pgd
 
         if not isinstance(X, list):
             X = [X]
@@ -199,7 +199,8 @@ class BaoRegression:
         self.__net.eval()
         pred = self.__net(X).cpu().detach().numpy()
         #print(pred)
-        return self.__pipeline.inverse_transform(pred)[0][0]
+        # return self.__pipeline.inverse_transform(pred)[0][0] # ONLY USE FOR PGD
+        return self.__pipeline.inverse_transform(pred)
     
     def featurize_vector(self, X):
         if not isinstance(X, list):

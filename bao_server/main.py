@@ -25,6 +25,7 @@ class BaoModel:
         self.__current_model = None
 
     def select_plan(self, messages):
+        global last_optim_time
         start = time.time()
         # the last message is the buffer state
         *arms, buffers = messages
