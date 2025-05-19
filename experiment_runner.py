@@ -2,6 +2,7 @@
 # $ python3 experiment_runner.py workloads/og_workload.json 25 26 | tee batch_out_25.txt
 import os
 import sys
+import time
 from time import sleep
 from datetime import datetime
 
@@ -11,6 +12,7 @@ MAX_BAO_ARMS = int(sys.argv[3]) if int(sys.argv[3]) >= MIN_BAO_ARMS_INDEX and in
 #PATH = str(sys.argv[4]) # eg. Q27
 
 for num_of_arms in range(MIN_BAO_ARMS_INDEX, MAX_BAO_ARMS):
+    start = time.time()
     print(f"{str(datetime.now())} : Running OG Workload experiment with {num_of_arms} bao arms...")
     
     # f"python3 run_queries_new.py {WORKLOAD_FILE} 1 0 {num_of_arms} logs/arm_logs_500/bao_run_{num_of_arms}_arms_log.json | tee results/arm_results_500/bao_run_{num_of_arms}_arms.txt"
@@ -24,8 +26,7 @@ for num_of_arms in range(MIN_BAO_ARMS_INDEX, MAX_BAO_ARMS):
     os.system("sync")
     print(f"{str(datetime.now())} : Done!")
     sleep(1)
-    #os.makedirs(f"db_snapshots/500_added/{PATH}/", exist_ok=True) # TODO: Delete later
-    #os.system(f"cp bao_server/bao.db db_snapshots/500_added/{PATH}/bao_snapshot_with_{num_of_arms}_arms.db")
+
     os.makedirs(f"db_snapshot/", exist_ok=True) # TODO: Delete later
     os.system(f"cp bao_server/bao.db db_snapshot/bao_snapshot_with_{num_of_arms}_arms.db")
     sleep(5)
@@ -35,3 +36,7 @@ for num_of_arms in range(MIN_BAO_ARMS_INDEX, MAX_BAO_ARMS):
     os.system("cd bao_server && python3 -c 'import storage; storage.flush_tables()'")
     sleep(1)
 
+    end = time.time()
+    duration_min = (end - start) / 60
+
+    print(f"Execution time: {duration_min:.2f} minutes")
