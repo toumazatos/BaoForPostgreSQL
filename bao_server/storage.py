@@ -102,9 +102,9 @@ def record_predictions(predictions):
             conn.commit()
 
 def record_reward(plan, optim_time, reward, pid, arm_idx):
-    print("=======inside record reward=======")
-    print(optim_time)
-    print(reward)
+    #print("=======inside record reward=======")
+    #print(optim_time)
+    #print(reward)
     with _bao_db() as conn:
         c = conn.cursor()
         c.execute("INSERT INTO experience (plan, optim_time, reward, pg_pid, arm_idx) VALUES (?, ?, ?, ?, ?)",
