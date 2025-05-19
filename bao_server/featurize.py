@@ -50,6 +50,8 @@ class TreeBuilder:
         if omit_cardinality:
             return np.concatenate((arr, self.__stats(node)[:1] + self.__stats(node)[2:])) # cardinality is the middle attribute in stats
         
+        return np.concatenate((arr, self.__stats(node)))
+        
 
     def __featurize_scan(self, node, omit_buffers, omit_cost, omit_cardinality):
         # For Operation Type removal experiments
