@@ -14,26 +14,26 @@ def create_sequence(queries, seq_length, specific_query, specific_query_n):
     # A python list of k tuples in the form of:
     #     ("../sql_file_path.sql", "SELECT contents FROM sql_file;")
     # from the query sample pool provided. 
-    target_query = [element for element in queries if specific_query in element[0]] 
+    """target_query = [element for element in queries if specific_query in element[0]] 
     if target_query: # if the specified query exists in the query set
         print("check")
-        """
-        specific_queries = target_query * specific_query_n
-        query_sequence = random.choices(queries, k=seq_length-specific_query_n)
-        query_sequence += specific_queries
-        random.seed(42)
-        random.shuffle(query_sequence)
-        return query_sequence
-        """
+        #
+        #specific_queries = target_query * specific_query_n
+        #query_sequence = random.choices(queries, k=seq_length-specific_query_n)
+        #query_sequence += specific_queries
+        #random.seed(42)
+        #random.shuffle(query_sequence)
+        #return query_sequence
+        #
         # for storing query_plans
         print(len(queries))
         query_sequence = random.choices(queries, k=40)
         query_sequence += 6 * queries
         return query_sequence
-        
-    else:
-        query_sequence = random.choices(queries, k=seq_length)
-
+    
+    else:"""
+    query_sequence = random.choices(queries, k=seq_length)
+    
     return query_sequence
 
 def create_batches(query_sequence, n):
