@@ -1,10 +1,12 @@
 #  Usage:
-# $ python3 run_experiment.py workloads/og_workload.json 25 26 | tee batch_out_25.txt
+# $ python3 run_experiment.py workloads/og_workload.json 5 6 | tee batch_out_25.txt
 # workloads can be randomly created through `ceate_workload.py`.
 import os
 import sys
 from time import sleep
 from datetime import datetime
+import os
+import time
 
 WORKLOAD_FILE = sys.argv[1]
 MIN_BAO_ARMS_INDEX = int(sys.argv[2]) if int(sys.argv[2]) >= 5 and int(sys.argv[2]) <=25 else 5
@@ -12,6 +14,8 @@ MAX_BAO_ARMS = int(sys.argv[3]) if int(sys.argv[3]) >= MIN_BAO_ARMS_INDEX and in
 PATH = str(sys.argv[4]) # eg. Q27
 
 for num_of_arms in range(MIN_BAO_ARMS_INDEX, MAX_BAO_ARMS):
+    start = time.time()
+
     print(f"{str(datetime.now())} : Running workload experiment with {num_of_arms} bao arms...")
     
     os.makedirs(f"results/{PATH}/", exist_ok=True)
@@ -28,3 +32,8 @@ for num_of_arms in range(MIN_BAO_ARMS_INDEX, MAX_BAO_ARMS):
     sleep(1)
     os.system("cd bao_server && python3 -c 'import storage; storage.flush_tables()'")
     sleep(1)
+    
+    end = time.time()
+    duration_min = (end - start) / 60
+
+    print(f"Execution time: {duration_min:.2f} minutes")
