@@ -38,37 +38,22 @@ class TreeBuilder:
 
         raise TreeBuilderError("Cannot extract relation type from node")
                 
-    def __featurize_join(self, node, omit_buffers, omit_cost, omit_cardinality):
+    def __featurize_join(self, node):
         # For Operation Type removal experiments
         assert is_join(node)
         arr = np.zeros(len(ALL_TYPES)) # node opperation 1-hot vector
         arr[ALL_TYPES.index(node["Node Type"])] = 1 # node opperation 1-hot vector
-        if omit_buffers:
-            return np.concatenate((arr, self.__stats(node)[:-1])) # buffers are always last in stats
-        if omit_cost:
-            return np.concatenate((arr, self.__stats(node)[1:])) # cost is always first in stats
-        if omit_cardinality:
-            return np.concatenate((arr, self.__stats(node)[:1] + self.__stats(node)[2:])) # cardinality is the middle attribute in stats
-        
         return np.concatenate((arr, self.__stats(node)))
-        
 
-    def __featurize_scan(self, node, omit_buffers, omit_cost, omit_cardinality):
+    def __featurize_scan(self, node):
         # For Operation Type removal experiments
         assert is_scan(node)
         arr = np.zeros(len(ALL_TYPES))
         arr[ALL_TYPES.index(node["Node Type"])] = 1
-        if omit_buffers:
-            return np.concatenate((arr, self.__stats(node)[:-1]),
-                                  self.__relation_name(node)) # buffers are always last in stats
-        if omit_cost:
-            return np.concatenate((arr, self.__stats(node)[1:]),
-                                  self.__relation_name(node)) # cost is always first in stats
-        if omit_cardinality:
-            return np.concatenate((arr, self.__stats(node)[:1] + self.__stats(node)[2:]),
-                                  self.__relation_name(node)) # cardinality is the middle attribute in stats
+        return (np.concatenate((arr, self.__stats(node))),
+                self.__relation_name(node))
 
-    def plan_to_feature_tree(self, plan, omit_buffers=False, omit_cost=False, omit_cardinality=False):
+    def plan_to_feature_tree(self, plan):
         children = plan["Plans"] if "Plans" in plan else []
 
         if len(children) == 1:
@@ -76,14 +61,14 @@ class TreeBuilder:
 
         if is_join(plan):
             assert len(children) == 2
-            my_vec = self.__featurize_join(plan, omit_buffers, omit_cost, omit_cardinality)
+            my_vec = self.__featurize_join(plan)
             left = self.plan_to_feature_tree(children[0])
             right = self.plan_to_feature_tree(children[1])
             return (my_vec, left, right)
 
         if is_scan(plan):
             assert not children
-            return self.__featurize_scan(plan, omit_buffers, omit_cost, omit_cardinality)
+            return self.__featurize_scan(plan)
 
         raise TreeBuilderError("Node wasn't transparent, a join, or a scan: " + str(plan))
 
@@ -122,7 +107,7 @@ def get_plan_stats(data):
     bufs = []
     
     def recurse(n, buffers=None):
-        #costs.append(n["Total Cost"])
+        costs.append(n["Total Cost"])
         rows.append(n["Plan Rows"])
         if "Buffers" in n:
             bufs.append(n["Buffers"])
@@ -220,10 +205,10 @@ class TreeFeaturizer:
         stats_extractor = get_plan_stats(trees)
         self.__tree_builder = TreeBuilder(stats_extractor, all_rels)
 
-    def transform(self, trees, omit_buffers=False, omit_cost=False, omit_cardinality=False):
+    def transform(self, trees):
         for t in trees:
             _attach_buf_data(t)
-        return [self.__tree_builder.plan_to_feature_tree(x["Plan"], omit_buffers, omit_cost, omit_cardinality) for x in trees]
+        return [self.__tree_builder.plan_to_feature_tree(x["Plan"]) for x in trees]
 
     def num_operators(self):
         return len(ALL_TYPES)
