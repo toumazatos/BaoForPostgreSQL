@@ -92,13 +92,15 @@ class StatExtractor:
         self.__maxs = maxs
 
     def __call__(self, inp):
-        res = []
+        """res = []
         for f, lo, hi in zip(self.__fields, self.__mins, self.__maxs):
             if f not in inp:
                 res.append(0)
             else:
                 res.append(norm(inp[f], lo, hi))
-        return res
+        return res"""
+        # Trying Bao without normalization (TODO: revert later)
+        return [ inp.get(f, 0) for f in self.__fields ]
 
 def get_plan_stats(data):
     # For Cost & Cardinality removal experiments
